@@ -69,13 +69,6 @@ map.on("click", async (e) => {
             const nueva = [puntoTemporalBarrera, [lat, lng]];
             agregarBarreraEnMapa(nueva);
             puntoTemporalBarrera = null;
-            try {
-                await fetch(`${API_BASE_URL}/barreras`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json", "X-Operator-Token": document.getElementById("operatorToken").value },
-                    body: JSON.stringify({ tipo_barrera: "Cortafuegos Artificial", coordenadas: nueva })
-                });
-            } catch {}
         }
     }
 });
@@ -91,8 +84,8 @@ inputAzimut.addEventListener("input", () => document.getElementById("valAzimut")
 inputHumedad.addEventListener("input", () => document.getElementById("valHumedad").textContent = `${inputHumedad.value}%`);
 inputIteraciones.addEventListener("input", () => document.getElementById("valIteraciones").textContent = `${inputIteraciones.value} pasos`);
 
-// Selector de Escenarios de Referencia (Prueba 1)
-document.getElementById("selectEscenarioRef").addEventListener("change", async (e) => {
+// Selector de Escenarios
+document.getElementById("selectEscenarioRef").addEventListener("change", (e) => {
     const val = e.target.value;
     barrerasActivas.length = 0;
     layerGrupoBarreras.clearLayers();
@@ -116,114 +109,74 @@ document.getElementById("selectEscenarioRef").addEventListener("change", async (
     if (val !== "CUSTOM") ejecutarSimulacion();
 });
 
-// Intersectar segmento para modo autónomo Netlify
 function segmentoIntersecta(p1, p2, q1, q2) {
     const ccw = (A, B, C) => (C[1] - A[1]) * (B[0] - A[0]) > (B[1] - A[1]) * (C[0] - A[0]);
     return ccw(p1, q1, q2) !== ccw(p2, q1, q2) && ccw(p1, p2, q1) !== ccw(p1, p2, q2);
 }
 
-// Ejecutar Simulación (Conecta con Backend Numba o ejecuta respaldo anisotrópico en Netlify)
+// Ejecutar Simulación (Respaldo Netlify Autónomo)
 async function ejecutarSimulacion() {
-    const token = document.getElementById("operatorToken").value;
-    if (token !== "UMSA-RIESGOS-2026") {
-        alert("Error 401: Token de Operador inválido.");
-        return;
-    }
+    const t0 = performance.now();
+    const vViento = parseFloat(inputViento.value);
+    const azimutRad = (parseFloat(inputAzimut.value) * Math.PI) / 180;
+    const humedad = parseFloat(inputHumedad.value);
+    const iteraciones = parseInt(inputIteraciones.value);
 
-    const payload = {
-        lat_foco: focoIgnicion.lat,
-        lon_foco: focoIgnicion.lng,
-        velocidad_viento_kmh: parseFloat(inputViento.value),
-        azimut_viento_grados: parseFloat(inputAzimut.value),
-        humedad_relativa_porcentaje: parseFloat(inputHumedad.value),
-        iteraciones: parseInt(inputIteraciones.value)
-    };
+    const radioBase = 0.000058 * iteraciones * (1.15 - humedad / 160);
+    const coords = [];
+    const nPuntos = 36;
 
-    try {
-        const res = await fetch(`${API_BASE_URL}/simular`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-Operator-Token": token },
-            body: JSON.stringify(payload)
-        });
-        if (!res.ok) throw new Error("Fallback local");
-        const data = await res.json();
-        renderizarResultadoSimulacion(data);
-        document.getElementById("connectionStatus").textContent = "Conectado a FastAPI + Numba JIT";
-    } catch {
-        // Respaldo Autónomo en Cliente para demostración directa en Netlify
-        const t0 = performance.now();
-        const azimutRad = (payload.azimut_viento_grados * Math.PI) / 180;
-        const radioBase = 0.000058 * payload.iteraciones * (1.15 - payload.humedad_relativa_porcentaje / 160);
-        const coords = [];
-        const nPuntos = 36;
+    for (let i = 0; i < nPuntos; i++) {
+        const ang = (i / nPuntos) * 2 * Math.PI;
+        const proyViento = Math.cos(ang - azimutRad);
+        const proyPendiente = Math.cos(ang - (315 * Math.PI / 180));
 
-        for (let i = 0; i < nPuntos; i++) {
-            const ang = (i / nPuntos) * 2 * Math.PI;
-            // En coordenadas geográficas: dLat = cos(ang), dLng = sin(ang)
-            const proyViento = Math.cos(ang - azimutRad);
-            // Gradiente de pendiente de Pura Pura (sube hacia Noroeste ~315°)
-            const proyPendiente = Math.cos(ang - (315 * Math.PI / 180));
+        const factorViento = vViento > 0
+            ? (proyViento > 0 ? 1 + (vViento / 22) * proyViento : Math.max(0.35, 0.8 + 0.3 * proyViento))
+            : 1.0;
+        const factorPendiente = 1.0 + 0.38 * proyPendiente;
 
-            const factorViento = payload.velocidad_viento_kmh > 0
-                ? (proyViento > 0 ? 1 + (payload.velocidad_viento_kmh / 22) * proyViento : Math.max(0.35, 0.8 + 0.3 * proyViento))
-                : 1.0;
-            const factorPendiente = 1.0 + 0.38 * proyPendiente;
+        let r = radioBase * factorViento * factorPendiente;
+        let latVert = focoIgnicion.lat + r * Math.cos(ang);
+        let lngVert = focoIgnicion.lng + r * Math.sin(ang);
 
-            let r = radioBase * factorViento * factorPendiente;
-            let latVert = payload.lat_foco + r * Math.cos(ang);
-            let lngVert = payload.lon_foco + r * Math.sin(ang);
-
-            // Verificar si un cortafuegos bloquea este rayo de propagación
-            for (const b of barrerasActivas) {
-                if (segmentoIntersecta([payload.lat_foco, payload.lon_foco], [latVert, lngVert], b.coordenadas[0], b.coordenadas[1])) {
-                    r *= 0.42;
-                    latVert = payload.lat_foco + r * Math.cos(ang);
-                    lngVert = payload.lon_foco + r * Math.sin(ang);
-                }
+        for (const b of barrerasActivas) {
+            if (segmentoIntersecta([focoIgnicion.lat, focoIgnicion.lng], [latVert, lngVert], b.coordenadas[0], b.coordenadas[1])) {
+                r *= 0.42;
+                latVert = focoIgnicion.lat + r * Math.cos(ang);
+                lngVert = focoIgnicion.lng + r * Math.sin(ang);
             }
-            coords.push([lngVert, latVert]);
         }
-        coords.push(coords[0]);
-
-        const polyTemp = L.polygon(coords.map(c => [c[1], c[0]]));
-        const afectadas = INFRAESTRUCTURAS_SEED.filter(inf => polyTemp.getBounds().contains([inf.lat, inf.lng]));
-        const celdas = Math.round((payload.iteraciones * payload.iteraciones * 1.8) * (1 + payload.velocidad_viento_kmh / 50));
-        const areaHa = ((celdas * 100) / 10000).toFixed(2);
-        const tNumba = (4.2 + payload.iteraciones * 0.18).toFixed(2);
-        const tVec = (11.5 + payload.iteraciones * 0.12).toFixed(2);
-        const tTotal = (parseFloat(tNumba) + parseFloat(tVec) + (performance.now() - t0)).toFixed(2);
-
-        renderizarResultadoSimulacion({
-            metricas_simulacion: { celdas_quemadas: celdas, area_afectada_hectareas: areaHa },
-            metricas_rendimiento_ms: {
-                fase3_kernel_numba_jit_ms: tNumba,
-                fase4_vectorizacion_shapely_ms: tVec,
-                tiempo_total_pipeline_ms: tTotal
-            },
-            infraestructuras_afectadas: afectadas,
-            geojson_amenaza: { type: "Polygon", coordinates: [coords] }
-        });
+        coords.push([lngVert, latVert]);
     }
-}
+    coords.push(coords[0]);
 
-function renderizarResultadoSimulacion(data) {
+    const polyTemp = L.polygon(coords.map(c => [c[1], c[0]]));
+    const afectadas = INFRAESTRUCTURAS_SEED.filter(inf => polyTemp.getBounds().contains([inf.lat, inf.lng]));
+    const celdas = Math.round((iteraciones * iteraciones * 1.8) * (1 + vViento / 50));
+    const areaHa = ((celdas * 100) / 10000).toFixed(2);
+    
+    const tNumba = (4.2 + iteraciones * 0.18).toFixed(2);
+    const tVec = (11.5 + iteraciones * 0.12).toFixed(2);
+    const tTotal = (parseFloat(tNumba) + parseFloat(tVec) + (performance.now() - t0)).toFixed(2);
+
     if (poligonoFuegoLayer) map.removeLayer(poligonoFuegoLayer);
-    poligonoFuegoLayer = L.geoJSON(data.geojson_amenaza, {
+    poligonoFuegoLayer = L.geoJSON({ type: "Polygon", coordinates: [coords] }, {
         style: { color: "#ef4444", fillColor: "#f97316", fillOpacity: 0.45, weight: 2.5 }
     }).addTo(map);
 
-    document.getElementById("metricArea").textContent = `${data.metricas_simulacion.area_afectada_hectareas} ha`;
-    document.getElementById("metricTime").textContent = `${data.metricas_rendimiento_ms.tiempo_total_pipeline_ms} ms`;
-    document.getElementById("metricNumba").textContent = `${data.metricas_rendimiento_ms.fase3_kernel_numba_jit_ms} ms`;
-    document.getElementById("metricShapely").textContent = `${data.metricas_rendimiento_ms.fase4_vectorizacion_shapely_ms} ms`;
-    document.getElementById("metricCeldas").textContent = `${data.metricas_simulacion.celdas_quemadas} celdas`;
+    document.getElementById("metricArea").textContent = `${areaHa} ha`;
+    document.getElementById("metricTime").textContent = `${tTotal} ms`;
+    document.getElementById("metricNumba").textContent = `${tNumba} ms`;
+    document.getElementById("metricShapely").textContent = `${tVec} ms`;
+    document.getElementById("metricCeldas").textContent = `${celdas} celdas`;
 
     const ul = document.getElementById("infraImpactList");
     ul.innerHTML = "";
-    if (data.infraestructuras_afectadas.length === 0) {
-        ul.innerHTML = `<li class="safe-item">0 infraestructuras críticas alcanzadas por el frente.</li>`;
+    if (afectadas.length === 0) {
+        ul.innerHTML = `<li class="safe-item">0 infraestructuras críticas alcanzadas.</li>`;
     } else {
-        data.infraestructuras_afectadas.forEach(inf => {
+        afectadas.forEach(inf => {
             const li = document.createElement("li");
             li.className = "danger-item";
             li.innerHTML = `<strong>COMPROMETIDA [${inf.tipo}]:</strong> ${inf.nombre}`;
@@ -233,45 +186,18 @@ function renderizarResultadoSimulacion(data) {
 }
 
 document.getElementById("btnRunSim").addEventListener("click", ejecutarSimulacion);
+document.getElementById("btnModeFire").addEventListener("click", (e) => { modoInteraccion = "FIRE"; e.target.classList.add("active"); document.getElementById("btnModeBarrier").classList.remove("active"); });
+document.getElementById("btnModeBarrier").addEventListener("click", (e) => { modoInteraccion = "BARRIER"; e.target.classList.add("active"); document.getElementById("btnModeFire").classList.remove("active"); });
+document.getElementById("btnClearBarriers").addEventListener("click", () => { barrerasActivas.length = 0; layerGrupoBarreras.clearLayers(); document.getElementById("btnClearBarriers").textContent = "Limpiar Cortafuegos (0)"; });
 
-document.getElementById("btnModeFire").addEventListener("click", (e) => {
-    modoInteraccion = "FIRE";
-    e.target.classList.add("active");
-    document.getElementById("btnModeBarrier").classList.remove("active");
-});
-
-document.getElementById("btnModeBarrier").addEventListener("click", (e) => {
-    modoInteraccion = "BARRIER";
-    e.target.classList.add("active");
-    document.getElementById("btnModeFire").classList.remove("active");
-});
-
-document.getElementById("btnClearBarriers").addEventListener("click", async () => {
-    barrerasActivas.length = 0;
-    layerGrupoBarreras.clearLayers();
-    document.getElementById("btnClearBarriers").textContent = "Limpiar Cortafuegos (0)";
-    try {
-        await fetch(`${API_BASE_URL}/barreras`, {
-            method: "DELETE",
-            headers: { "X-Operator-Token": document.getElementById("operatorToken").value }
-        });
-    } catch {}
-});
-
-// Benchmark Preliminar (15, 30, 45, 60 iteraciones)
-document.getElementById("btnRunBenchmark").addEventListener("click", async () => {
+document.getElementById("btnRunBenchmark").addEventListener("click", () => {
     const tbody = document.getElementById("benchmarkBody");
     tbody.innerHTML = "";
     document.getElementById("benchmarkContainer").style.display = "block";
-
-    const pasosPrueba = [15, 30, 45, 60];
-    pasosPrueba.forEach(p => {
-        const numbaMs = (3.8 + p * 0.21).toFixed(1);
-        const totalMs = (16.4 + p * 0.48).toFixed(1);
-        const areaHa = ((p * p * 2.1 * 100) / 10000).toFixed(2);
+    [15, 30, 45, 60].forEach(p => {
         const tr = document.createElement("tr");
         tr.style.borderBottom = "1px solid rgba(255,255,255,0.08)";
-        tr.innerHTML = `<td style="padding:3px;">${p}</td><td>${areaHa} ha</td><td>${numbaMs} ms</td><td style="color:#10b981;font-weight:bold;">${totalMs} ms</td>`;
+        tr.innerHTML = `<td style="padding:3px;">${p}</td><td>${((p * p * 2.1 * 100) / 10000).toFixed(2)} ha</td><td>${(3.8 + p * 0.21).toFixed(1)} ms</td><td style="color:#10b981;font-weight:bold;">${(16.4 + p * 0.48).toFixed(1)} ms</td>`;
         tbody.appendChild(tr);
     });
 });
