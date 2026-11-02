@@ -22,11 +22,11 @@
 
     <main class="dashboard-grid">
         <aside class="sidebar">
-            <!-- Escenarios de Referencia (Exigencia de Validación Académica) -->
+            <!-- Escenarios de Referencia (Prueba 1 Académica) -->
             <section class="card">
                 <h2>1. Escenarios de Referencia (Validación)</h2>
                 <p class="subtext">Selecciona un escenario pre-calibrado para evaluar la propagación anisotrópica:</p>
-                <select id="selectEscenarioRef" style="width:100%; padding:0.45rem; background:#0f172a; color:#fff; border:1px solid #334155; border-radius:6px; margin-bottom:0.4rem;">
+                <select id="selectEscenarioRef">
                     <option value="CUSTOM">-- Configuración Manual Libre --</option>
                     <option value="REF_01">Ref 1: Sin Viento (Efecto Puro Pendiente DEM)</option>
                     <option value="REF_02">Ref 2: Viento Extremo SE (45 km/h a favor)</option>
@@ -35,7 +35,7 @@
                 <p class="subtext" id="descEscenarioRef">Modo manual activo: ajusta los parámetros o haz clic en el mapa.</p>
             </section>
 
-            <!-- Parámetros Meteorológicos y Calibración del Autómata -->
+            <!-- Parámetros Físicos -->
             <section class="card">
                 <h2>2. Parámetros Físicos y Meteorológicos</h2>
                 <label>Velocidad Viento: <strong id="valViento">25.0 km/h</strong></label>
@@ -47,11 +47,11 @@
                 <label>Humedad Relativa: <strong id="valHumedad">28%</strong></label>
                 <input type="range" id="inputHumedad" min="10" max="90" step="1" value="28" />
 
-                <label>Iteraciones del Autómata ($t_{max}$): <strong id="valIteraciones">45 pasos</strong></label>
+                <label>Iteraciones del Autómata: <strong id="valIteraciones">45 pasos</strong></label>
                 <input type="range" id="inputIteraciones" min="10" max="60" step="5" value="45" />
             </section>
 
-            <!-- Trazado Táctico y Ejecución -->
+            <!-- Control Táctico -->
             <section class="card">
                 <h2>3. Control Táctico y Simulación</h2>
                 <div class="btn-group">
@@ -62,7 +62,7 @@
                 <button id="btnRunSim" class="btn-primary">Ejecutar Autómata Celular (Módulo 2)</button>
             </section>
 
-            <!-- Mediciones Preliminares de Rendimiento e Impacto -->
+            <!-- Mediciones de Rendimiento -->
             <section class="card impact-card">
                 <div class="card-header-flex">
                     <h2>4. Rendimiento y Evaluación (< 5s)</h2>
@@ -104,7 +104,7 @@
         <section class="map-container">
             <div id="map"></div>
             <div class="map-legend">
-                <div><span class="dot dot-fire"></span> Foco de Ignición `(row, col)`</div>
+                <div><span class="dot dot-fire"></span> Foco de Ignición</div>
                 <div><span class="dot dot-poly"></span> Polígono Anisotrópico Simplificado</div>
                 <div><span class="dot dot-barrier"></span> Cortafuegos Rasterizado (Estado 0)</div>
                 <div><span class="dot dot-infra"></span> Infraestructura Vulnerable</div>
