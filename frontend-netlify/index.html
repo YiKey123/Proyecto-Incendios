@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Módulo 2: Simulador de Autómatas Celulares y Rendimiento - Pura Pura (UMSA)</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+    <header class="topbar">
+        <div class="brand">
+            <span class="badge-live">MÓDULO 2 - SEMANA 2</span>
+            <h1>Simulador Funcional de Autómatas Celulares (Numba JIT) — Bosquecillo de Pura Pura</h1>
+        </div>
+        <div class="security-box">
+            <label for="operatorToken">X-Operator-Token:</label>
+            <input type="password" id="operatorToken" value="UMSA-RIESGOS-2026" />
+            <span id="connectionStatus" class="status-pill">Motor Listo</span>
+        </div>
+    </header>
+
+    <main class="dashboard-grid">
+        <aside class="sidebar">
+            <!-- Escenarios de Referencia (Exigencia de Validación Académica) -->
+            <section class="card">
+                <h2>1. Escenarios de Referencia (Validación)</h2>
+                <p class="subtext">Selecciona un escenario pre-calibrado para evaluar la propagación anisotrópica:</p>
+                <select id="selectEscenarioRef" style="width:100%; padding:0.45rem; background:#0f172a; color:#fff; border:1px solid #334155; border-radius:6px; margin-bottom:0.4rem;">
+                    <option value="CUSTOM">-- Configuración Manual Libre --</option>
+                    <option value="REF_01">Ref 1: Sin Viento (Efecto Puro Pendiente DEM)</option>
+                    <option value="REF_02">Ref 2: Viento Extremo SE (45 km/h a favor)</option>
+                    <option value="REF_03">Ref 3: Contención con Cortafuegos Activo</option>
+                </select>
+                <p class="subtext" id="descEscenarioRef">Modo manual activo: ajusta los parámetros o haz clic en el mapa.</p>
+            </section>
+
+            <!-- Parámetros Meteorológicos y Calibración del Autómata -->
+            <section class="card">
+                <h2>2. Parámetros Físicos y Meteorológicos</h2>
+                <label>Velocidad Viento: <strong id="valViento">25.0 km/h</strong></label>
+                <input type="range" id="inputViento" min="0" max="70" step="1" value="25" />
+
+                <label>Azimut Viento (° hacia donde avanza): <strong id="valAzimut">135° (SE)</strong></label>
+                <input type="range" id="inputAzimut" min="0" max="359" step="1" value="135" />
+
+                <label>Humedad Relativa: <strong id="valHumedad">28%</strong></label>
+                <input type="range" id="inputHumedad" min="10" max="90" step="1" value="28" />
+
+                <label>Iteraciones del Autómata ($t_{max}$): <strong id="valIteraciones">45 pasos</strong></label>
+                <input type="range" id="inputIteraciones" min="10" max="60" step="5" value="45" />
+            </section>
+
+            <!-- Trazado Táctico y Ejecución -->
+            <section class="card">
+                <h2>3. Control Táctico y Simulación</h2>
+                <div class="btn-group">
+                    <button id="btnModeFire" class="btn-mode active">Fijar Foco</button>
+                    <button id="btnModeBarrier" class="btn-mode">Trazar Cortafuegos</button>
+                </div>
+                <button id="btnClearBarriers" class="btn-danger-outline">Limpiar Cortafuegos (0)</button>
+                <button id="btnRunSim" class="btn-primary">Ejecutar Autómata Celular (Módulo 2)</button>
+            </section>
+
+            <!-- Mediciones Preliminares de Rendimiento e Impacto -->
+            <section class="card impact-card">
+                <div class="card-header-flex">
+                    <h2>4. Rendimiento y Evaluación (< 5s)</h2>
+                    <button id="btnRunBenchmark" class="btn-secondary">Correr Benchmark</button>
+                </div>
+                <div class="metrics-grid">
+                    <div class="metric-box">
+                        <span class="metric-label">Área Afectada</span>
+                        <strong id="metricArea">0.00 ha</strong>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-label">Tiempo Total (&lt;5000ms)</span>
+                        <strong id="metricTime">0 ms</strong>
+                    </div>
+                </div>
+                <div class="kv-row" style="margin-top:0.4rem;"><span>Fase 3 (Kernel Numba JIT):</span><strong id="metricNumba">0.0 ms</strong></div>
+                <div class="kv-row"><span>Fase 4 (Shapely Simplify):</span><strong id="metricShapely">0.0 ms</strong></div>
+                <div class="kv-row"><span>Celdas Consumidas (10m):</span><strong id="metricCeldas">0 px</strong></div>
+
+                <h3>Infraestructuras Comprometidas (`ST_Intersects`):</h3>
+                <ul id="infraImpactList" class="impact-list">
+                    <li class="safe-item">Ejecuta un escenario para evaluar impacto.</li>
+                </ul>
+
+                <div id="benchmarkContainer" style="display:none; margin-top:0.6rem;">
+                    <h3>Tabla de Medición Preliminar (300x300):</h3>
+                    <table style="width:100%; font-size:0.72rem; border-collapse:collapse; text-align:center;">
+                        <thead>
+                            <tr style="border-bottom:1px solid #334155; color:#f59e0b;">
+                                <th>Pasos</th><th>Área (ha)</th><th>Numba (ms)</th><th>Total (ms)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="benchmarkBody"></tbody>
+                    </table>
+                </div>
+            </section>
+        </aside>
+
+        <section class="map-container">
+            <div id="map"></div>
+            <div class="map-legend">
+                <div><span class="dot dot-fire"></span> Foco de Ignición `(row, col)`</div>
+                <div><span class="dot dot-poly"></span> Polígono Anisotrópico Simplificado</div>
+                <div><span class="dot dot-barrier"></span> Cortafuegos Rasterizado (Estado 0)</div>
+                <div><span class="dot dot-infra"></span> Infraestructura Vulnerable</div>
+                <div><span class="dot dot-shelter"></span> Nodo Refugio Seguro (OSM)</div>
+            </div>
+        </section>
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
