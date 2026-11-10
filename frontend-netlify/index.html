@@ -3,70 +3,81 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Módulo 2: Simulador de Autómatas Celulares y Rendimiento - Pura Pura (UMSA)</title>
+    <title>Sistema Integrado (Módulos 1-4): Simulación y Evacuación Adaptativa - Pura Pura (UMSA)</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
     <header class="topbar">
         <div class="brand">
-            <span class="badge-live">MÓDULO 2 - SEMANA 2</span>
-            <h1>Simulador Funcional de Autómatas Celulares (Numba JIT) — Bosquecillo de Pura Pura</h1>
+            <span class="badge-live">VERSIÓN INTEGRADA - SEMANAS 3 Y 4</span>
+            <h1>Simulador de Incendios (Numba JIT) y Rutas de Evacuación Adaptativas (pgRouting) — Pura Pura</h1>
         </div>
         <div class="security-box">
             <label for="operatorToken">X-Operator-Token:</label>
             <input type="password" id="operatorToken" value="UMSA-RIESGOS-2026" />
-            <span id="connectionStatus" class="status-pill">Motor Listo</span>
+            <span id="connectionStatus" class="status-pill">Sistema Integrado Activo</span>
         </div>
     </header>
 
     <main class="dashboard-grid">
         <aside class="sidebar">
-            <!-- Escenarios de Referencia (Prueba 1 Académica) -->
+            <!-- 1. Escenarios de Referencia y Pruebas Académicas -->
             <section class="card">
-                <h2>1. Escenarios de Referencia (Validación)</h2>
-                <p class="subtext">Selecciona un escenario pre-calibrado para evaluar la propagación anisotrópica:</p>
+                <h2>1. Escenarios de Referencia y Validación</h2>
                 <select id="selectEscenarioRef">
                     <option value="CUSTOM">-- Configuración Manual Libre --</option>
-                    <option value="REF_01">Ref 1: Sin Viento (Efecto Puro Pendiente DEM)</option>
-                    <option value="REF_02">Ref 2: Viento Extremo SE (45 km/h a favor)</option>
-                    <option value="REF_03">Ref 3: Contención con Cortafuegos Activo</option>
+                    <option value="REF_01">Prueba 1A: Sin Viento (Efecto Puro Pendiente DEM)</option>
+                    <option value="REF_02">Prueba 1B / 2A: Viento SE (Fuego bloquea vía central y desvía ruta)</option>
+                    <option value="REF_03">Prueba 2B: Cortafuegos Activo (Rehabilita vía directa segura)</option>
                 </select>
-                <p class="subtext" id="descEscenarioRef">Modo manual activo: ajusta los parámetros o haz clic en el mapa.</p>
+                <p class="subtext" id="descEscenarioRef">Selecciona un escenario o interactúa directamente con el mapa.</p>
             </section>
 
-            <!-- Parámetros Físicos -->
+            <!-- 2. Parámetros Físicos y Meteorológicos -->
             <section class="card">
                 <h2>2. Parámetros Físicos y Meteorológicos</h2>
-                <label>Velocidad Viento: <strong id="valViento">25.0 km/h</strong></label>
-                <input type="range" id="inputViento" min="0" max="70" step="1" value="25" />
+                <label>Velocidad Viento: <strong id="valViento">35.0 km/h</strong></label>
+                <input type="range" id="inputViento" min="0" max="70" step="1" value="35" />
 
                 <label>Azimut Viento (° hacia donde avanza): <strong id="valAzimut">135° (SE)</strong></label>
                 <input type="range" id="inputAzimut" min="0" max="359" step="1" value="135" />
 
-                <label>Humedad Relativa: <strong id="valHumedad">28%</strong></label>
-                <input type="range" id="inputHumedad" min="10" max="90" step="1" value="28" />
+                <label>Humedad Relativa: <strong id="valHumedad">25%</strong></label>
+                <input type="range" id="inputHumedad" min="10" max="90" step="1" value="25" />
 
                 <label>Iteraciones del Autómata: <strong id="valIteraciones">45 pasos</strong></label>
                 <input type="range" id="inputIteraciones" min="10" max="60" step="5" value="45" />
             </section>
 
-            <!-- Control Táctico -->
+            <!-- 3. Control Táctico, Posición Ciudadano y Simulación Integrada -->
             <section class="card">
-                <h2>3. Control Táctico y Simulación</h2>
-                <div class="btn-group">
+                <h2>3. Control Táctico y Ruteo Dinámico (Módulo 3)</h2>
+                <div class="btn-group" style="grid-template-columns: 1fr 1fr 1fr;">
                     <button id="btnModeFire" class="btn-mode active">Fijar Foco</button>
-                    <button id="btnModeBarrier" class="btn-mode">Trazar Cortafuegos</button>
+                    <button id="btnModeUser" class="btn-mode">Ubicación GPS</button>
+                    <button id="btnModeBarrier" class="btn-mode">Cortafuegos</button>
                 </div>
                 <button id="btnClearBarriers" class="btn-danger-outline">Limpiar Cortafuegos (0)</button>
-                <button id="btnRunSim" class="btn-primary">Ejecutar Autómata Celular (Módulo 2)</button>
+                <button id="btnRunSim" class="btn-primary">Simular Incendio + Calcular Ruta Segura</button>
             </section>
 
-            <!-- Mediciones de Rendimiento -->
+            <!-- 4. Resultados del Algoritmo de Rutas Dinámicas (Módulo 3) -->
+            <section class="card">
+                <h2>4. Métricas de Evacuación Adaptativa (pgRouting)</h2>
+                <div class="kv-row"><span>Refugio Asignado:</span><strong id="routeShelter" style="color:#10b981;">--</strong></div>
+                <div class="kv-row"><span>Distancia Peatonal:</span><strong id="routeDist">0.0 m</strong></div>
+                <div class="kv-row"><span>Pendiente Media / Máx:</span><strong id="routeSlope">0.0% / 0.0%</strong></div>
+                <div class="kv-row"><span>Tiempo Estimado Exposición:</span><strong id="routeExposure" style="color:#f59e0b;">0.0 s (0.0 min)</strong></div>
+                <div class="kv-row"><span>Aristas Viales Bloqueadas:</span><strong id="routeBlockedEdges" style="color:#ef4444;">0 vías</strong></div>
+                <div class="kv-row"><span>Verificación de Seguridad:</span><strong id="routeSafetyCheck" style="color:#10b981;">Pendiente</strong></div>
+            </section>
+
+            <!-- 5. Evaluación de Impacto y 3 Pruebas Académicas -->
             <section class="card impact-card">
                 <div class="card-header-flex">
-                    <h2>4. Rendimiento y Evaluación (< 5s)</h2>
-                    <button id="btnRunBenchmark" class="btn-secondary">Correr Benchmark</button>
+                    <h2>5. Rendimiento (&lt; 5s) y Validación</h2>
+                    <button id="btnRunBenchmark" class="btn-secondary">Ejecutar 3 Pruebas</button>
                 </div>
                 <div class="metrics-grid">
                     <div class="metric-box">
@@ -74,25 +85,24 @@
                         <strong id="metricArea">0.00 ha</strong>
                     </div>
                     <div class="metric-box">
-                        <span class="metric-label">Tiempo Total (&lt;5000ms)</span>
+                        <span class="metric-label">Respuesta E2E (&lt;5000ms)</span>
                         <strong id="metricTime">0 ms</strong>
                     </div>
                 </div>
-                <div class="kv-row" style="margin-top:0.4rem;"><span>Fase 3 (Kernel Numba JIT):</span><strong id="metricNumba">0.0 ms</strong></div>
-                <div class="kv-row"><span>Fase 4 (Shapely Simplify):</span><strong id="metricShapely">0.0 ms</strong></div>
-                <div class="kv-row"><span>Celdas Consumidas (10m):</span><strong id="metricCeldas">0 px</strong></div>
+                <div class="kv-row"><span>Kernel Numba + Shapely:</span><strong id="metricNumba">0.0 ms</strong></div>
+                <div class="kv-row"><span>Cálculo Dijkstra (pgRouting):</span><strong id="metricDijkstra">0.0 ms</strong></div>
 
                 <h3>Infraestructuras Comprometidas (`ST_Intersects`):</h3>
                 <ul id="infraImpactList" class="impact-list">
-                    <li class="safe-item">Ejecuta un escenario para evaluar impacto.</li>
+                    <li class="safe-item">Ejecuta la simulación integrada para auditar.</li>
                 </ul>
 
                 <div id="benchmarkContainer" style="display:none; margin-top:0.6rem;">
-                    <h3>Tabla de Medición Preliminar (300x300):</h3>
-                    <table style="width:100%; font-size:0.72rem; border-collapse:collapse; text-align:center;">
+                    <h3>Resultados de las 3 Pruebas Exigidas:</h3>
+                    <table style="width:100%; font-size:0.71rem; border-collapse:collapse; text-align:left;">
                         <thead>
                             <tr style="border-bottom:1px solid #334155; color:#f59e0b;">
-                                <th>Pasos</th><th>Área (ha)</th><th>Numba (ms)</th><th>Total (ms)</th>
+                                <th>Prueba Académica</th><th>Métrica Verificada</th><th>Estado</th>
                             </tr>
                         </thead>
                         <tbody id="benchmarkBody"></tbody>
@@ -105,9 +115,10 @@
             <div id="map"></div>
             <div class="map-legend">
                 <div><span class="dot dot-fire"></span> Foco de Ignición</div>
-                <div><span class="dot dot-poly"></span> Polígono Anisotrópico Simplificado</div>
-                <div><span class="dot dot-barrier"></span> Cortafuegos Rasterizado (Estado 0)</div>
-                <div><span class="dot dot-infra"></span> Infraestructura Vulnerable</div>
+                <div><span class="dot dot-poly"></span> Polígono de Amenaza (Autómata)</div>
+                <div><span class="dot" style="background:#22c55e;"></span> Ruta Evacuación Óptima (Dijkstra)</div>
+                <div><span class="dot" style="background:#a855f7;"></span> Posición Ciudadano (GPS)</div>
+                <div><span class="dot dot-barrier"></span> Cortafuegos Táctico (Estado 0)</div>
                 <div><span class="dot dot-shelter"></span> Nodo Refugio Seguro (OSM)</div>
             </div>
         </section>
